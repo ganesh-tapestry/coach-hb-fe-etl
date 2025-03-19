@@ -46,6 +46,14 @@ duplicate_columns = df.columns[df.columns.duplicated()].tolist()
 
 print("Duplicate column names:", duplicate_columns)
 
+
+
+def print_function_name_decorator(func):
+    def wrapper(*args, **kwargs):
+        print(f"{'*' * 50} {func.__name__} {'*' * 50}")
+        return func(*args, **kwargs)
+    return wrapper
+
 # Function to check and print initial data information
 def check_data_info(df):
     print(f"Dataset shape: {df.shape}")
@@ -82,6 +90,8 @@ def handle_missing_values(df):
     high_missing_cols = missing_percentage[missing_percentage > 50].index.tolist()
     print(f"\nColumns with >50% missing values (consider dropping): {high_missing_cols}")
     
+    print(" Dropping Columns: ", high_missing_cols)
+    df.drop(columns = high_missing_cols, inplace=True)
     # For now, we'll keep all columns but handle them differently based on data type
     return df
 
@@ -101,33 +111,85 @@ def extract_numeric_values(value):
     
     return np.nan
 
-# Function to process dimensional features
-def process_dimensional_features(df):
-    # List of dimensional features
-    dimensional_features = ['bag_height', 'bag_width', 'gusset_width', 'handle_drop_length',
-                           'long_strap_drop_length', 'thickness']
+
+def convert_mm_to_cm(value, unit):
+    if unit == 'mm':
+        return value / 10
+    return value
+
+# # Function to process dimensional features
+# def process_dimensional_features(df):
+#     # List of dimensional features
+#     dimensional_features = ['bag_height', 'bag_width', 'gusset_width', 'handle_drop_length',
+#                            'long_strap_drop_length', 'thickness', "top_opening_width"]
     
-    # Extract numeric values
-    for col in dimensional_features:
-        if col in df.columns:
-            df[col] = df[col].apply(extract_numeric_values)
+#     # Extract numeric values
+#     for col in dimensional_features:
+#         if col in df.columns:
+#             df[col] = df[col].apply(extract_numeric_values)
             
-            # Add unit column if needed
-            df[f'{col}_unit'] = 'cm'  # Default unit is cm
+#             # Add unit column if needed
+#             df[f'{col}_unit'] = 'cm'  # Default unit is cm
             
-            # Check for 'inches' in the original column
-            if col in df.columns:
-                df[f'{col}_unit'] = df[col].astype(str).apply(
-                    lambda x: 'inches' if 'inch' in str(x).lower() else 'cm'
-                )
+#             # Check for 'inches' in the original column
+#             if col in df.columns:
+#                 df[f'{col}_unit'] = df[col].astype(str).apply(
+#                     lambda x: 'inches' if 'inch' in str(x).lower() else 'cm'
+#                 )
                 
-                # Convert inches to cm for consistency
-                inches_mask = df[f'{col}_unit'] == 'inches'
-                # 1 inch = 2.54cm
-                df.loc[inches_mask, col] = df.loc[inches_mask, col] * 2.54
-                df.loc[inches_mask, f'{col}_unit'] = 'cm'
+#                 # Convert inches to cm for consistency
+#                 inches_mask = df[f'{col}_unit'] == 'inches'
+#                 # 1 inch = 2.54cm
+#                 df.loc[inches_mask, col] = df.loc[inches_mask, col] * 2.54
+#                 df.loc[inches_mask, f'{col}_unit'] = 'cm'
+                
+#                 # Convert mm to cm
+#                 df[col] = df.apply(lambda row: convert_mm_to_cm(row[col], row[f'{col}_unit']), axis=1)
+#                 df[f'{col}_unit'] = 'cm'                
     
+#     return df
+
+
+def convert_length_columns_to_cm(df):
+    """
+    Identifies columns with length values containing units (mm, cm, inch) 
+    and converts them all to cm.
+    """
+    def extract_value_and_unit(value):
+        """Extracts numeric value and unit from a string."""
+        match = re.match(r"([\d\.]+)\s*(mm|cm|in|inch|inches)?", str(value).lower())
+        if match:
+            num_value = float(match.group(1))  # Extract numeric part
+            unit = match.group(2) if match.group(2) else 'cm'  # Default to cm if no unit found
+            unit = 'inch' if unit in ['in', 'inch', 'inches'] else unit  # Normalize inch variations
+            return num_value, unit
+        return None, None
+
+    def convert_to_cm(value, unit):
+        """Converts mm and inches to cm."""
+        if unit == 'mm':
+            return value / 10
+        elif unit == 'inch':
+            return value * 2.54
+        elif unit == 'cm':
+            return value
+        return None  # Handle invalid cases gracefully
+
+    # Identify columns with potential dimensional data
+    # length_columns = [col for col in df.columns if df[col].astype(str).str.contains(r'\d+\s*(mm|cm|in|inch|inches)', regex=True).any()]
+    pattern = re.compile(r'(?i)\b(length|height|width|depth|diameter|size|dimension)\b')
+    
+    dimensional_columns = [col for col in df.columns if pattern.search(col)]
+
+    for col in dimensional_columns:
+        df[[f"{col}_numeric", f"{col}_unit"]] = df[col].apply(lambda x: pd.Series(extract_value_and_unit(x)))
+        df[col] = df.apply(lambda row: convert_to_cm(row[f"{col}_numeric"], row[f"{col}_unit"]), axis=1)
+
+        # Drop intermediate columns
+        df.drop(columns=[f"{col}_numeric", f"{col}_unit"], inplace=True)
+
     return df
+
 
 # Function to encode categorical variables
 def encode_categorical_features(df):
@@ -159,45 +221,6 @@ def encode_categorical_features(df):
                 df = pd.concat([df, dummies], axis=1)
     
     return df, encoders
-
-# Function to handle binary features
-def handle_binary_features(df):
-    # List of binary features
-    binary_features = [
-        'limited_edition_status', 'signature_pattern_presence', 'colorblock_design',
-        'quilted_pattern', 'stitch_visibility', 'corner_protection', 'bottom_feet',
-        'hangtag_presence', 'chain_detail', 'turnlock_hardware', 'removable_strap',
-        'adjustable_strap', 'laptop_compatibility', 'blind_emboss_detail',
-        'foil_emboss_detail', 'contrast_stitching', 'piping_detail', 'bombe_edge',
-        'tapered_shape', 'reinforced_handle_attachment', 'storypatch_presence',
-        'collapsible_design', 'dual_handle_design', 'wristlet_attachment',
-        'keyring/key_leash', 'gusseted_pocket', 'zipper_extension', 'dust_bag_included',"coin_pocket",
-            "water_bottle_pocket", "exterior_slip_pocket", "interior_zip_pocket", "interior_zip_pocket", "interior_slip_pocket","exterior_zip_pocket"
-    ]
-
-
-
-    # Convert binary features to 0/1
-    for col in binary_features:
-        if col in df.columns:
-            # Map 'Yes', 'Present', etc. to 1 and 'No', 'Absent', etc. to 0
-            positive_values = ['Yes', 'Present', 'True']
-            negative_values = ['No', 'Absent', 'False',str(np.nan),str(None)]
-            
-            # Create a mapping function
-            def map_binary(val):
-                if pd.isnull(val):
-                    return np.nan
-                elif any(pos in str(val) for pos in positive_values):
-                    return 1
-                elif any(neg in str(val) for neg in negative_values):
-                    return 0
-                else:
-                    return np.nan
-            
-            df[col] = df[col].apply(map_binary)
-
-    return df
 
 # Function to handle numerical features
 def handle_numerical_features(df):
@@ -260,16 +283,79 @@ def create_aggregated_features(df):
         df.drop(columns = ['structured_vs._slouchy'], inplace=True)
     return df
 
+
+
+# Function to handle binary features
+def handle_binary_features(df):
+    # List of binary features
+    # binary_features = [
+    #     'limited_edition_status', 'signature_pattern_presence', 'colorblock_design',
+    #     'quilted_pattern', 'stitch_visibility', 'corner_protection', 'bottom_feet',
+    #     'hangtag_presence', 'chain_detail', 'turnlock_hardware', 'removable_strap',
+    #     'adjustable_strap', 'laptop_compatibility', 'blind_emboss_detail',
+    #     'foil_emboss_detail', 'contrast_stitching', 'piping_detail', 'bombe_edge',
+    #     'tapered_shape', 'reinforced_handle_attachment', 'storypatch_presence',
+    #     'collapsible_design', 'dual_handle_design', 'wristlet_attachment',
+    #     'keyring/key_leash', 'gusseted_pocket', 'zipper_extension', 'dust_bag_included',"coin_pocket",
+    #         "water_bottle_pocket", "exterior_slip_pocket", "interior_zip_pocket", "interior_zip_pocket", "interior_slip_pocket","exterior_zip_pocket"
+    # ]
+
+    positive_values = ['Yes', "yes", 'Present', "present", 'True',"true"]
+    negative_values = ['No', "no", 'Absent', "absent", 'False', "false", str(np.nan) ,str(None)]
+    binary_features = list()
+    
+    for column in df.columns:
+        if df[column].isin(['yes', 'no',"Yes","No"]).any():
+            binary_features.append(column)
+    
+    print (" all binary_features: ", binary_features)
+    # Convert binary features to 0/1
+    for col in binary_features:
+        if col in df.columns:
+            # Map 'Yes', 'Present', etc. to 1 and 'No', 'Absent', etc. to 0
+            positive_values = ['Yes', "yes", 'Present', "present", 'True',"true"]
+            negative_values = ['No', "no", 'Absent', "absent", 'False', "false", str(np.nan) ,str(None)]
+            
+            # Create a mapping function
+            def map_binary(val):
+                if pd.isnull(val):
+                    # return np.nan
+                    return 0
+                elif any(pos in str(val) for pos in positive_values):
+                    return 1
+                elif any(neg in str(val) for neg in negative_values):
+                    return 0
+                else:
+                    return 0
+                    # return np.nan
+            
+            df[col] = df[col].apply(map_binary)
+
+    return df
+
+
+# # Function to convert yes/no columns to binary
+# @print_function_name_decorator
+# def convert_yes_no_to_binary(df):
+#     for column in df.columns:
+#         # print(df[column].value_counts())
+
+#         if df[column].isin(['yes', 'no',"Yes","No"]).any():
+#             print(column, "is a binary column")
+#             print(df[column].value_counts())
+#             df[column] = df[column].map({'yes': 1, 'no': 0})
+#     return df
+
+
 # Main data preparation pipeline
 def prepare_data_for_analysis(df):
     # Clean column names
     df = clean_column_names(df)
-    # Handle missing values
-    df = handle_missing_values(df)
-    print(1,df["tablet_compatibility"].value_counts())
+
 
     # Process dimensional features
-    df = process_dimensional_features(df)
+    # df = process_dimensional_features(df)
+    df = convert_length_columns_to_cm(df)
     print(1,df["tablet_compatibility"].value_counts())
 
     # Handle binary features
@@ -293,15 +379,10 @@ def prepare_data_for_analysis(df):
     print(6,df["tablet_compatibility"].value_counts())
     
     
-    # Function to convert yes/no columns to binary
-    def convert_yes_no_to_binary(df):
-        for column in df.columns:
-            if df[column].isin(['yes', 'no']).all() or df[column].isin(['yes']).all():
-                df[column] = df[column].map({'yes': 1, 'no': 0})
-        return df
 
-    # Convert yes/no columns to binary
-    df = convert_yes_no_to_binary(df)
+
+    # # Convert yes/no columns to binary
+    # df = convert_yes_no_to_binary(df)
 
     
     
@@ -318,6 +399,8 @@ def prepare_data_for_analysis(df):
     categorical_cols.remove("style")
     categorical_cols.remove("product_name")
 
+    # Handle missing values
+    df = handle_missing_values(df)
 
     #TODO : Issue -  This is causing lot of incorrect values 
     # for col in categorical_cols:
