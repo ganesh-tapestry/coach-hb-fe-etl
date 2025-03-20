@@ -108,14 +108,15 @@ cursor.execute(fetch_processed_query)
 processed_style_codes = {row[0] for row in cursor.fetchall()}
 
 # Fetch all distinct style codes from the source table
-# fetch_query = "SELECT DISTINCT style_code FROM gen_ai_nlp.rpt_a360_item_lkp WHERE brandcode = 'COH'"
-fetch_query = """
-SELECT DISTINCT style_code 
-FROM gen_ai_nlp.rpt_a360_item_lkp 
-WHERE brandcode = 'COH' 
-AND gender = 'W' 
-AND department_desc = 'Womens Bags'
-"""
+fetch_query = "SELECT DISTINCT style_code FROM gen_ai_nlp.rpt_a360_item_lkp WHERE brandcode = 'COH'"
+# fetch_query = """
+# SELECT DISTINCT style_code 
+# FROM gen_ai_nlp.rpt_a360_item_lkp 
+# WHERE brandcode = 'COH' 
+# AND gender = 'W' 
+# """
+# AND department_desc = 'Womens Bags'
+# """
 
 cursor.execute(fetch_query)
 all_style_codes = {row[0] for row in cursor.fetchall()}
