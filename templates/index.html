@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Prediction UI</title>
+  </head>
+  <body>
+    <h1>Make Predictions</h1>
+    <form action="/predict" method="post">
+      {% for feature in features %}
+        <label for="{{ feature }}">{{ feature }}</label>
+        <select name="{{ feature }}" id="{{ feature }}">
+          {% for value in unique_values[feature] %}
+            <option value="{{ value }}">{{ value }}</option>
+          {% endfor %}
+        </select><br>
+      {% endfor %}
+      <input type="submit" value="Predict">
+    </form>
+  </body>
+</html>
