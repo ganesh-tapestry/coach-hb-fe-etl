@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction UI</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        /* Form Container */
+        .form-container {
+            background: white;
+            width: 90%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        label {
+            font-size: 16px;
+            font-weight: 500;
+            display: block;
+            margin-top: 15px;
+            color: #34495e;
+            text-align: left;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border-radius: 8px;
+            border: 1px solid #bdc3c7;
+            font-size: 14px;
+            background-color: #ecf0f1;
+            transition: 0.3s;
+        }
+
+        select:focus {
+            border-color: #2980b9;
+            outline: none;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 22px;
+            font-size: 18px;
+            font-weight: 500;
+            margin-top: 25px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s;
+            width: 100%;
+        }
+
+        .submit-btn:hover {
+            background-color: #217dbb;
+        }
+
+        /* Prediction Result */
+        .result-container {
+            margin-top: 25px;
+            padding: 15px;
+            background: #fff;
+            display: inline-block;
+            border-radius: 8px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .result-container h2 {
+            color: #27ae60;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .result-container p {
+            font-size: 16px;
+            color: #2c3e50;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 24px;
+            }
+
+            .form-container {
+                padding: 20px;
+            }
+
+            label {
+                font-size: 14px;
+            }
+
+            select {
+                font-size: 13px;
+                padding: 10px;
+            }
+
+            .submit-btn {
+                font-size: 16px;
+                padding: 12px;
+            }
+
+            .result-container {
+                padding: 12px;
+            }
+
+            .result-container h2 {
+                font-size: 20px;
+            }
+
+            .result-container p {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>💡 Make Predictions Instantly</h1>
+
+    <div class="form-container">
+        <form action="/ui" method="post">
+            {% for feature in features %}
+                <label for="{{ feature }}">{{ feature.replace('_', ' ') | capitalize }}</label>
+                <select name="{{ feature }}" id="{{ feature }}">
+                    <option value="" disabled {% if not selected_values.get(feature) %}selected{% endif %}>Select {{ feature.replace('_', ' ') }}</option>
+                    {% for value in unique_values[feature] %}
+                        <option value="{{ value }}" {% if selected_values.get(feature) == value|string %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            {% endfor %}
+            <br>
+            <input type="submit" value="🔍 Predict" class="submit-btn">
+        </form>
+    </div>
+
+    {% if result %}
+    <div class="result-container">
+        <h2>✅ Prediction Result</h2>
+        <p>{{ result | safe }}</p>
+    </div>
+    {% endif %}
+
+</body>
+</html>
